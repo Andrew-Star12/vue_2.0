@@ -9,26 +9,21 @@ Vue.component('note-form', {
 
         <div v-for="(point, index) in points" :key="index">
           <label :for="'point' + index">Пункт {{ index + 1 }}</label>
-          <input type="text" v-model="points[index]" :id="'point' + index" required />
+          <input type="text" v-model="point.text" :id="'point' + index" required />
         </div>
 
         <button type="submit">Сохранить заметку</button>
       </form>
-
-      <div v-show="isNoteSaved">
-        <h3>Заметка сохранена!</h3>
-        <p><strong>Заголовок:</strong> {{ title }}</p>
-        <ul>
-          <li v-for="(point, index) in points" :key="index">{{ point }}</li>
-        </ul>
-      </div>
     </div>
   `,
     data() {
         return {
             title: '',
-            points: ['', '', ''],
-            isNoteSaved: false
+            points: [
+                { text: '', checked: false },
+                { text: '', checked: false },
+                { text: '', checked: false }
+            ]
         };
     },
     methods: {
@@ -41,18 +36,23 @@ Vue.component('note-form', {
             // Отправляем новую заметку в родительский компонент
             this.$emit('add-note', newNote);
 
-            // Очищаем поля после сохранения
+            // Сбрасываем форму в пустое состояние, но не скрываем ее
             this.resetForm();
         },
         resetForm() {
             this.title = '';
-            this.points = ['', '', ''];
-            this.isNoteSaved = false;
+            this.points = [
+                { text: '', checked: false },
+                { text: '', checked: false },
+                { text: '', checked: false }
+            ];
         }
     }
 });
 
-// Компонент для отображения всех заметок
+
+
+
 Vue.component('note-column', {
     props: {
         notes: {
@@ -60,33 +60,87 @@ Vue.component('note-column', {
             required: true
         }
     },
+    computed: {
+        unfinishedNotes() {
+            return this.notes.filter(note => this.getCompletionPercentage(note) < 50);
+        },
+        inProgressNotes() {
+            return this.notes.filter(note => this.getCompletionPercentage(note) >= 50 && this.getCompletionPercentage(note) < 100);
+        },
+        completedNotes() {
+            return this.notes.filter(note => this.getCompletionPercentage(note) === 100);
+        }
+    },
+    methods: {
+        getCompletionPercentage(note) {
+            const completedPoints = note.points.filter(point => point.checked).length;
+            const totalPoints = note.points.length;
+            return (completedPoints / totalPoints) * 100;
+        }
+    },
     template: `
     <div class="note-column">
-      <h2>Заметки</h2>
-      <div v-if="notes.length === 0">
-        <p>Нет заметок</p>
+      <div class="column">
+        <h2>Незавершенные</h2>
+        <div v-if="unfinishedNotes.length === 0">
+          <p>Нет незавершенных заметок</p>
+        </div>
+        <div v-else>
+          <div v-for="(note, index) in unfinishedNotes" :key="index" class="note-card">
+            <h3>{{ note.title }}</h3>
+            <ul>
+              <li v-for="(point, idx) in note.points" :key="idx">
+                <input type="checkbox" v-model="point.checked" /> {{ point.text }}
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
-      <div v-else>
-        <div v-for="(note, index) in notes" :key="index" class="note-card">
-          <h3>{{ note.title }}</h3>
-          <ul>
-            <li v-for="(point, idx) in note.points" :key="idx">{{ point }}</li>
-          </ul>
+
+      <div class="column">
+        <h2>Промежуточные</h2>
+        <div v-if="inProgressNotes.length === 0">
+          <p>Нет промежуточных заметок</p>
+        </div>
+        <div v-else>
+          <div v-for="(note, index) in inProgressNotes" :key="index" class="note-card">
+            <h3>{{ note.title }}</h3>
+            <ul>
+              <li v-for="(point, idx) in note.points" :key="idx">
+                <input type="checkbox" v-model="point.checked" /> {{ point.text }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="column">
+        <h2>Завершенные</h2>
+        <div v-if="completedNotes.length === 0">
+          <p>Нет завершенных заметок</p>
+        </div>
+        <div v-else>
+          <div v-for="(note, index) in completedNotes" :key="index" class="note-card">
+            <h3>{{ note.title }}</h3>
+            <ul>
+              <li v-for="(point, idx) in note.points" :key="idx">
+                <input type="checkbox" v-model="point.checked" /> {{ point.text }}
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
-  `,
-    data() {
-        return {};
-    }
+  `
 });
 
-// Инициализируем Vue-приложение
+
+
 new Vue({
     el: '#app',
     data() {
         return {
-            notes: [] // Храним заметки
+            notes: [] // Храним все заметки
         };
     },
     methods: {
