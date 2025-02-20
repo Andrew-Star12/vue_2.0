@@ -7,11 +7,22 @@ Vue.component('note-form', {
           <input type="text" id="title" v-model="title" required />
         </div>
 
-        <div v-for="(point, index) in points" :key="index">
+        <!-- Начальные три пункта, которые нельзя удалить -->
+        <div v-for="(point, index) in initialPoints" :key="'initial' + index">
           <label :for="'point' + index">Пункт {{ index + 1 }}</label>
           <input type="text" v-model="point.text" :id="'point' + index" required />
         </div>
 
+        <!-- Дополнительные пункты, которые можно добавлять и удалять -->
+        <div v-for="(point, index) in addedPoints" :key="'added' + index">
+          <label :for="'addedPoint' + index">Пункт {{ index + 4 }}</label>
+          <input type="text" v-model="point.text" :id="'addedPoint' + index" required />
+          <!-- Кнопка для удаления добавленного пункта -->
+          <button type="button" @click="removePoint(index)">Удалить</button>
+        </div>
+
+        <!-- Кнопка для добавления пункта (максимум 5 пунктов) -->
+        <button type="button" @click="addPoint" :disabled="addedPoints.length >= 2">Добавить пункт</button>
         <button type="submit">Сохранить заметку</button>
       </form>
     </div>
@@ -19,33 +30,40 @@ Vue.component('note-form', {
     data() {
         return {
             title: '',
-            points: [
-                { text: '', checked: false },
-                { text: '', checked: false },
-                { text: '', checked: false }
-            ]
+            initialPoints: [
+                { text: '', checked: false }, // Пункт 1
+                { text: '', checked: false }, // Пункт 2
+                { text: '', checked: false }  // Пункт 3
+            ],
+            addedPoints: [] // Массив для добавленных пользователем пунктов
         };
     },
     methods: {
+        addPoint() {
+            // Если добавленных пунктов меньше 2, добавляем новый пункт
+            if (this.addedPoints.length < 2) {
+                this.addedPoints.push({ text: '', checked: false });
+            }
+        },
+        removePoint(index) {
+            // Удаляем добавленный пункт
+            this.addedPoints.splice(index, 1);
+        },
         submitNote() {
             const newNote = {
                 title: this.title,
-                points: this.points
+                points: [...this.initialPoints, ...this.addedPoints] // Объединяем начальные и добавленные пункты
             };
 
             // Отправляем новую заметку в родительский компонент
             this.$emit('add-note', newNote);
 
-            // Сбрасываем форму в пустое состояние, но не скрываем ее
+            // Сбрасываем форму в пустое состояние
             this.resetForm();
         },
         resetForm() {
             this.title = '';
-            this.points = [
-                { text: '', checked: false },
-                { text: '', checked: false },
-                { text: '', checked: false }
-            ];
+            this.addedPoints = []; // Сбрасываем только добавленные пункты
         }
     }
 });
@@ -124,7 +142,7 @@ Vue.component('note-column', {
             <h3>{{ note.title }}</h3>
             <ul>
               <li v-for="(point, idx) in note.points" :key="idx">
-                <input type="checkbox" v-model="point.checked" /> {{ point.text }}
+                <input type="checkbox" v-model="point.checked" disabled /> {{ point.text }}
               </li>
             </ul>
           </div>
