@@ -33,33 +33,66 @@ Vue.component('note-form', {
     },
     methods: {
         submitNote() {
-            // Сохраняем заметку (пока просто выводим в консоль)
-            console.log('Заметка сохранена:', {
+            const newNote = {
                 title: this.title,
                 points: this.points
-            });
+            };
 
-            // Отображаем сообщение о сохранении
-            this.isNoteSaved = true;
+            // Отправляем новую заметку в родительский компонент
+            this.$emit('add-note', newNote);
 
-            // Сбрасываем форму в пустое состояние, но не скрываем ее
+            // Очищаем поля после сохранения
             this.resetForm();
         },
         resetForm() {
-            // После отправки очищаем поля формы
             this.title = '';
             this.points = ['', '', ''];
-            // После сброса можно скрыть сообщение, если нужно, например, через таймер
-            setTimeout(() => {
-                this.isNoteSaved = false; // скрываем сообщение через некоторое время
-            }, 3000);
+            this.isNoteSaved = false;
         }
     }
 });
 
-
+// Компонент для отображения всех заметок
+Vue.component('note-column', {
+    props: {
+        notes: {
+            type: Array,
+            required: true
+        }
+    },
+    template: `
+    <div class="note-column">
+      <h2>Заметки</h2>
+      <div v-if="notes.length === 0">
+        <p>Нет заметок</p>
+      </div>
+      <div v-else>
+        <div v-for="(note, index) in notes" :key="index" class="note-card">
+          <h3>{{ note.title }}</h3>
+          <ul>
+            <li v-for="(point, idx) in note.points" :key="idx">{{ point }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  `,
+    data() {
+        return {};
+    }
+});
 
 // Инициализируем Vue-приложение
 new Vue({
-    el: '#app'
+    el: '#app',
+    data() {
+        return {
+            notes: [] // Храним заметки
+        };
+    },
+    methods: {
+        addNote(newNote) {
+            // Добавляем новую заметку в массив
+            this.notes.push(newNote);
+        }
+    }
 });
