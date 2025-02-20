@@ -63,12 +63,15 @@ Vue.component('note-form', {
         },
         resetForm() {
             this.title = '';
+            this.initialPoints = [
+                { text: '', checked: false },
+                { text: '', checked: false },
+                { text: '', checked: false }
+            ]; // Сбрасываем начальные пункты
             this.addedPoints = []; // Сбрасываем только добавленные пункты
         }
     }
 });
-
-
 
 
 Vue.component('note-column', {
@@ -87,6 +90,10 @@ Vue.component('note-column', {
         },
         completedNotes() {
             return this.notes.filter(note => this.getCompletionPercentage(note) === 100);
+        },
+        canAddNote() {
+            // Ограничение на 3 незавершенные заметки
+            return this.unfinishedNotes.length < 3;
         }
     },
     methods: {
@@ -148,6 +155,10 @@ Vue.component('note-column', {
           </div>
         </div>
       </div>
+      
+      <div v-if="!canAddNote" class="alert">
+        <p>Для добавления новой заметки нужно освободить место в разделе "Незавершенные".</p>
+      </div>
     </div>
   `
 });
@@ -163,8 +174,18 @@ new Vue({
     },
     methods: {
         addNote(newNote) {
-            // Добавляем новую заметку в массив
-            this.notes.push(newNote);
+            // Проверяем, можно ли добавить заметку
+            const unfinishedNotes = this.notes.filter(note => this.getCompletionPercentage(note) < 50);
+            if (unfinishedNotes.length < 3) {
+                this.notes.push(newNote);
+            } else {
+                alert("Невозможно добавить заметку. Освободите место в разделе 'Незавершенные'.");
+            }
+        },
+        getCompletionPercentage(note) {
+            const completedPoints = note.points.filter(point => point.checked).length;
+            const totalPoints = note.points.length;
+            return (completedPoints / totalPoints) * 100;
         }
     }
 });
