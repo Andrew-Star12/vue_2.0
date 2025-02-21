@@ -173,9 +173,7 @@ Vue.component('note-column', {
             </div>
         </div>
 
-        <div v-if="!canAddNote" class="alert">
-            <p>Для добавления новой заметки нужно освободить место в разделе "Промежуточные".</p>
-        </div>
+   
     </div>
     `
 });
