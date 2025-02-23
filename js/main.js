@@ -1,12 +1,11 @@
 Vue.component('note-form', {
-
     data() {
         return {
             title: '',
             initialPoints: [
-                { text: '', checked: false }, // Пункт 1
-                { text: '', checked: false }, // Пункт 2
-                { text: '', checked: false }  // Пункт 3
+                { text: '', checked: false },
+                { text: '', checked: false },
+                { text: '', checked: false }
             ],
             addedPoints: [] // Массив для добавленных пользователем пунктов
         };
@@ -31,7 +30,7 @@ Vue.component('note-form', {
                 points: [...this.initialPoints, ...this.addedPoints],
                 status: 'unfinished' // Статус по умолчанию для новых заметок
             };
-            this.$emit('add-note', newNote);
+            this.$emit('add-note', newNote); // Событие для добавления заметки
             this.resetForm();
         },
         resetForm() {
@@ -52,27 +51,24 @@ Vue.component('note-form', {
                 <input type="text" id="title" v-model="title" required />
             </div>
 
-            <!-- Начальные три пункта, которые нельзя удалить -->
             <div v-for="(point, index) in initialPoints" :key="'initial' + index">
                 <label :for="'point' + index">Пункт {{ index + 1 }}</label>
                 <input type="text" v-model="point.text" :id="'point' + index" required />
             </div>
 
-            <!-- Дополнительные пункты, которые можно добавлять и удалять -->
             <div v-for="(point, index) in addedPoints" :key="'added' + index">
                 <label :for="'addedPoint' + index">Пункт {{ index + 4 }}</label>
                 <input type="text" v-model="point.text" :id="'addedPoint' + index" required />
-                <!-- Кнопка для удаления добавленного пункта -->
                 <button type="button" @click="removePoint(index)">Удалить</button>
             </div>
 
-            <!-- Кнопка для добавления пункта (максимум 5 пунктов) -->
             <button type="button" @click="addPoint" :disabled="addedPoints.length >= 2">Добавить пункт</button>
             <button type="submit" :disabled="!canAddNote">Сохранить заметку</button>
         </form>
     </div>
-    `,
+    `
 });
+
 
 Vue.component('note-column', {
     props: {
@@ -92,11 +88,9 @@ Vue.component('note-column', {
             return this.notes.filter(note => this.getCompletionPercentage(note) === 100);
         },
         canMoveToInProgress() {
-            // Ограничение на 5 промежуточных заметок
             return this.inProgressNotes.length < 5;
         },
         isFirstColumnBlocked() {
-            // Если во втором столбике (Промежуточные) уже 5 заметок, блокируем первый столбик
             return this.inProgressNotes.length >= 5;
         }
     },
@@ -111,77 +105,137 @@ Vue.component('note-column', {
                 alert('Невозможно переместить заметку. В разделе "Промежуточные" уже 5 заметок.');
                 return;
             }
-            note.status = 'inProgress'; // Устанавливаем статус заметки
-            this.$emit('update-note-status', note); // Отправляем событие родителю, чтобы синхронизировать данные
+            note.status = 'inProgress';
+            this.$emit('update-note-status', note);
         },
         moveToCompleted(note) {
-            // Устанавливаем дату завершения при перемещении в завершенные
             note.status = 'completed';
-            note.completedAt = new Date().toLocaleString(); // Добавляем дату завершения
-            this.$emit('update-note-status', note); // Сохраняем изменения
+            note.completedAt = new Date().toLocaleString();  // Сохраняем текущую дату и время
+            this.$emit('update-note-status', note);
+            this.saveNotes(); // Сохраняем изменения в localStorage
+        },
+        addNote(newNote) {
+            const unfinishedNotes = this.notes.filter(note => this.getCompletionPercentage(note) < 50);
+            if (unfinishedNotes.length < 3) {
+                this.notes.push(newNote);
+                this.saveNotes();
+            } else {
+                alert("Невозможно добавить заметку. Освободите место в разделе 'Незавершенные'.");
+            }
+        },
+        saveNotes() {
+            localStorage.setItem('notes', JSON.stringify(this.notes)); // Сохраняем заметки в localStorage
         }
     },
     template: `
     <div class="note-column">
         <div class="column">
             <h2>Незавершенные</h2>
+            
             <div v-if="unfinishedNotes.length === 0">
                 <p>Нет незавершенных заметок</p>
             </div>
             <div v-else>
-                <div v-for="(note, index) in unfinishedNotes" :key="index" class="note-card">
-                    <h3>{{ note.title }}</h3>
-                    <ul>
-                        <li v-for="(point, idx) in note.points" :key="idx">
-                            <input type="checkbox" v-model="point.checked" :disabled="isFirstColumnBlocked" /> {{ point.text }}
-                        </li>
-                    </ul>
-                    <button v-if="canMoveToInProgress && getCompletionPercentage(note) >= 50" @click="moveToInProgress(note)">Переместить в "Промежуточные"</button>
-                    <div v-else-if="getCompletionPercentage(note) >= 50">
-                        <p>Невозможно переместить, в разделе "Промежуточные" уже 5 заметок.</p>
-                    </div>
-                </div>
+                <note-card
+                    v-for="(note, index) in unfinishedNotes"
+                    :key="index"
+                    :note="note"
+                    :isFirstColumnBlocked="isFirstColumnBlocked"
+                    @move-to-in-progress="moveToInProgress"
+                />
             </div>
         </div>
-
         <div class="column">
             <h2>Промежуточные</h2>
             <div v-if="inProgressNotes.length === 0">
                 <p>Нет промежуточных заметок</p>
             </div>
             <div v-else>
-                <div v-for="(note, index) in inProgressNotes" :key="index" class="note-card">
-                    <h3>{{ note.title }}</h3>
-                    <ul>
-                        <li v-for="(point, idx) in note.points" :key="idx">
-                            <input type="checkbox" v-model="point.checked" /> {{ point.text }}
-                        </li>
-                    </ul>
-                    <button v-if="getCompletionPercentage(note) === 100" @click="moveToCompleted(note)">Переместить в завершенные</button>
-                </div>
+                <note-card
+                    v-for="(note, index) in inProgressNotes"
+                    :key="index"
+                    :note="note"
+                    :isFirstColumnBlocked="false"
+                    @move-to-completed="moveToCompleted"
+                />
             </div>
         </div>
-
         <div class="column">
             <h2>Завершенные</h2>
             <div v-if="completedNotes.length === 0">
                 <p>Нет завершенных заметок</p>
             </div>
             <div v-else>
-                <div v-for="(note, index) in completedNotes" :key="index" class="note-card">
-                    <h3>{{ note.title }}</h3>
-                    <ul>
-                        <li v-for="(point, idx) in note.points" :key="idx">
-                            <input type="checkbox" v-model="point.checked" disabled /> {{ point.text }}
-                        </li>
-                    </ul>
-                    <p v-if="note.completedAt">Завершена: {{ note.completedAt }}</p>
-                </div>
+                <note-card
+                    v-for="(note, index) in completedNotes"
+                    :key="index"
+                    :note="note"
+                    :isFirstColumnBlocked="true"
+                />
             </div>
+            
         </div>
     </div>
     `
 });
+
+
+Vue.component('note-card', {
+    props: {
+        note: {
+            type: Object,
+            required: true
+        },
+        isFirstColumnBlocked: {
+            type: Boolean,
+            required: true
+        }
+    },
+    computed: {
+        completionPercentage() {
+            const completedPoints = this.note.points.filter(point => point.checked).length;
+            const totalPoints = this.note.points.length;
+            return (completedPoints / totalPoints) * 100;
+        }
+    },
+    watch: {
+        // Следим за изменениями в checked пунктах
+        'note.points': function () {
+            // Если все чекбоксы отмечены, считаем, что заметка завершена
+            if (this.completionPercentage === 100 && !this.note.completedAt) {
+                this.markAsCompleted();
+            }
+        }
+    },
+    methods: {
+        markAsCompleted() {
+            // Устанавливаем дату завершения, если заметка ещё не была завершена
+            this.note.completedAt = new Date().toLocaleString();
+            this.$emit('update-note-status', this.note); // Обновляем статус заметки в родительском компоненте
+            this.$emit('save-notes'); // Сохраняем изменения в localStorage
+        }
+    },
+    template: `
+    <div class="note-card">
+        <h3>{{ note.title }}</h3>
+        <ul>
+            <li v-for="(point, idx) in note.points" :key="idx">
+                <input
+                    type="checkbox"
+                    v-model="point.checked"
+                    :disabled="isFirstColumnBlocked"
+                />
+                {{ point.text }}
+            </li>
+        </ul>
+
+        <!-- Отображение даты завершения для завершенных заметок -->
+        <p v-if="note.completedAt">Завершена: {{ note.completedAt }}</p>
+    </div>
+    `
+});
+
+
 
 
 
